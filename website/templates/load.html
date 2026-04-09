@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Page</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='css/styles.css')}}"> 
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="log-file">
+                <button class="close-year" onclick="openPassCloseYear()">Close Year</button>
+                <button class="download-log" onclick="openPassDownloadLog()">Log File</button>
+            </div>
+
+            <button class="sign-in-button modal-button" onclick="document.getElementById('sign-in-modal').style.display='block'"> Sign In </button> 
+        </nav>
+    </header>
+
+    <div id="close-year-modal" class="modal">
+        <div class="content-background">
+            <div class="modal-content">
+                <p>Are you sure you want to close the year?</p>
+                <div class="close-buttons">
+                    <button class="confirm-close" onclick="confirmCloseYear()">Yes</button>
+                    <button class="cancel-close" onclick="document.getElementById('close-year-modal').style.display = 'none'">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id = "password-modal" class = "modal">
+        <div class = "content-background">
+            <div class = "modal-content">
+                <h2>Enter Password</h2>
+                <form id = "password-form" method = "POST">
+                    <label for = "password-input">Password:</label>
+                    <input type = "password" id = "password-input" class = "usernameInput" placeholder="Enter password" required>
+                    <div class = "close-buttons">
+                        <button type = "submit" class = "confirm-close">Confirm</button>
+                        <button type = "button" class = "cancel-close" onclick = "closePasswordModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id = "sign-in-modal" class = "modal">
+        <div class="content-background">
+            <div class = "modal-content">
+                <h2> Sign In </h2>
+                <form method = "POST" action = "/signIn">
+                    <label for = "username"> Enter Your Name: </label>
+                    <input type = "text" name = "username" class = "usernameInput" required>
+                    <button type = "submit" class = "sign-in-button" onclick="document.getElementById('sign-in-modal').style.display='none'"> Sign In </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="loginContainer">
+        <div class="itemAboveBox">
+            <h2>Enter containers to load.</h2>
+        </div>
+
+        <form id="ItemForm">
+            <div class="container-name">
+                <label for="itemInput">Container Name</label>
+                <input type="text" id="itemInput" class="usernameInput" placeholder="Item Name..." required>
+            </div>
+            <div class="container-weight">
+                <label for="weightInput">Container weight (kg):</label>
+                <input type="number" id="weightInput" class="usernameInput" placeholder="Item Weight..." required>
+            </div>
+            <button type="submit" class="signInButton">Add Item</button>
+        </form>
+        
+        <h2>Items to load:</h2>
+        <ul id="ItemList">
+            {% for item in loaded_items %}
+                <li>
+                    {{ item.name }} - {{ item.weight }} kg
+                    <button type="button" class="removeButton" data-name="{{ item.name }}">Remove</button>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <form id="SubmitForm" method="POST" action="{{ url_for('load') }}" style="position: relative;">
+        <input type="hidden" name="items" id="hiddenItems">
+        <button type="submit" class="submitButton">Submit</button>
+    </form>
+
+    <footer>
+        <div class="comment-section">
+            <p>Add comment</p>
+            <form method="POST" action="/add_comment" onsubmit="clearCommentBox()">
+                <textarea id = "commentBox" name="comment" placeholder="Type your comment here..." rows="4" cols="150" required ></textarea>
+                <button type="submit" class="add-comment-button">Add Comment</button>
+            </form>
+        </div>
+    </footer>
+
+    <script>
+        const arrayOfItems = [];
+        const itemForm = document.getElementById('ItemForm');
+        const itemInput = document.getElementById('itemInput');
+        const weightInput = document.getElementById('weightInput');
+        const itemList = document.getElementById('ItemList');
+        const submitForm = document.getElementById('SubmitForm');
+        const hiddenItems = document.getElementById('hiddenItems');
+
+        // Add item to the list
+        itemForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            const newName = itemInput.value.trim();
+            const newWeight = parseFloat(weightInput.value);
+
+            if(newName.length > 255){
+                alert("Container name cannot exceed 255 characters.");
+                return;
+            }
+            if (isNaN(newWeight) || newWeight <= 0 || newWeight > 99999) {
+                alert("Weight should be a positive integer between 0 and 99999.");
+                return;
+            }
+                arrayOfItems.push({ name: newName, weight: newWeight });
+                displayItems();
+                itemInput.value = '';
+                weightInput.value = '';
+        });
+
+        // Remove item from the list
+        itemList.addEventListener('click', function (event) {
+            if (event.target.classList.contains('removeButton')) {
+                const itemToRemove = event.target.getAttribute('data-name');
+                const itemIndex = arrayOfItems.findIndex(item => item.name === itemToRemove);
+                if (itemIndex > -1) {
+                    arrayOfItems.splice(itemIndex, 1);
+                    displayItems();
+                }
+            }
+        });
+
+        // Submit items to server
+        submitForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            hiddenItems.value = JSON.stringify(arrayOfItems);
+            submitForm.submit();
+        });
+
+        // Display items in the list
+        function displayItems() {
+            itemList.innerHTML = ''; 
+            arrayOfItems.forEach((item) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${item.name} - ${item.weight} kg`;
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Remove';
+                removeButton.classList.add('removeButton');
+                removeButton.setAttribute('data-name', item.name);
+                listItem.appendChild(removeButton);
+                itemList.appendChild(listItem);
+            });
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('sign-in-modal')) {
+                document.getElementById('sign-in-modal').style.display = "none";
+            }
+        }
+    
+        function confirmCloseYear() {
+            fetch('/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({action: 'Log Closed'}),
+            });
+            window.location.href = '/';
+        }
+        function clearCommentBox() {
+            setTimeout(() => {
+                const commentBox = document.getElementById('commentBox');
+                if (commentBox) {
+                    commentBox.value = ''; 
+                }
+            },100);
+        }
+
+        function openPassCloseYear() {
+        document.getElementById('password-modal').style.display = 'block';
+        document.getElementById('password-form').onsubmit = function(event){
+            event.preventDefault();
+            password = document.getElementById('password-input').value;
+            if (password === "keogh123"){
+                closePasswordModal();
+                confirmCloseYear();
+            }
+            else{
+                alert("Incorrect password");
+            }
+            password = document.getElementById('password-input').value = "";
+        };
+        }
+
+        function openPassDownloadLog() {
+            document.getElementById('password-modal').style.display = 'block';
+            document.getElementById('password-form').onsubmit = function(event){
+                event.preventDefault();
+                password = document.getElementById('password-input').value;
+                if (password === "keogh123"){
+                    closePasswordModal();
+                    location.href = '/download'
+                }
+                else{
+                    alert("Incorrect password");
+                }
+                password = document.getElementById('password-input').value = "";
+            };
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').style.display = 'none';
+        }
+    </script>
+
+</body>
+</html>
